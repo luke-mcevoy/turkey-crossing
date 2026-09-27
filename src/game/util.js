@@ -9,15 +9,31 @@ export const angleLerp = (a, b, t) => a + Math.atan2(Math.sin(b - a), Math.cos(b
 
 export const unitBox = new THREE.BoxGeometry(1, 1, 1);
 const mats = new Map();
-export function mat(color) {
-  let m = mats.get(color);
-  if (!m) { m = new THREE.MeshLambertMaterial({ color }); mats.set(color, m); }
+export function mat(color, { roughness = 0.78, metalness = 0 } = {}) {
+  const key = `${color}|${roughness}|${metalness}`;
+  let m = mats.get(key);
+  if (!m) { m = new THREE.MeshStandardMaterial({ color, roughness, metalness }); mats.set(key, m); }
   return m;
+}
+// Glossy car paint and tinted glass.
+export const paint = color => mat(color, { roughness: 0.28, metalness: 0.35 });
+export const glass = () => mat(0x1c2733, { roughness: 0.06, metalness: 0.8 });
+
+// Lights that brighten at night (bloom picks them up). Call setNightLights(n) with n in [0, 1].
+export const NIGHT_LIGHTS = {
+  head: new THREE.MeshBasicMaterial({ color: 0xfff1c8 }),
+  tail: new THREE.MeshBasicMaterial({ color: 0xd62828 }),
+  lamp: new THREE.MeshBasicMaterial({ color: 0xffe2a8 }),
+};
+export function setNightLights(n) {
+  NIGHT_LIGHTS.head.color.setHex(0xfff1c8).multiplyScalar(1 + n * 5);
+  NIGHT_LIGHTS.tail.color.setHex(0xd62828).multiplyScalar(1 + n * 4);
+  NIGHT_LIGHTS.lamp.color.setHex(0xffe2a8).multiplyScalar(0.6 + n * 7);
 }
 
 // Adds a box to `parent`. y is the bottom of the box, not its centre.
 export function box(parent, w, h, d, color, x = 0, y = 0, z = 0, cast = true) {
-  const m = new THREE.Mesh(unitBox, mat(color));
+  const m = new THREE.Mesh(unitBox, color instanceof THREE.Material ? color : mat(color));
   m.scale.set(w, h, d);
   m.position.set(x, y + h / 2, z);
   m.castShadow = cast;
@@ -48,7 +64,7 @@ export function sign(text, w, h, style = {}) {
   const px = 64;
   const tex = textTexture(text, { ...style, w: Math.min(1024, Math.round(px * w / h)), h: px });
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
-    new THREE.MeshBasicMaterial({ map: tex, transparent: !style.bg, side: THREE.DoubleSide }));
+    new THREE.MeshBasicMaterial({ map: tex, transparent: !style.bg, side: THREE.DoubleSide, toneMapped: false }));
   return m;
 }
 

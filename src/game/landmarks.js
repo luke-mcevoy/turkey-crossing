@@ -127,7 +127,7 @@ export function buildLandmarks(scene, world) {
     g.rotation.y = 0.35;
     scene.add(g);
     const glass = new THREE.Mesh(new THREE.BoxGeometry(9, 3.6, 6),
-      new THREE.MeshLambertMaterial({ color: 0x9fc6d8, transparent: true, opacity: 0.55 }));
+      new THREE.MeshStandardMaterial({ color: 0x9fc6d8, transparent: true, opacity: 0.55 }));
     glass.position.y = 1.8;
     g.add(glass);
     box(g, 9.4, 0.4, 6.4, 0x6b6f75, 0, 3.6, 0);
@@ -210,7 +210,7 @@ export function buildLandmarks(scene, world) {
     box(g, 5.6, 8, 5.6, 0xf2efe8, 0, 22, 0);
     box(g, 4.4, 6, 4.4, 0xf2efe8, 0, 30, 0);
     box(g, 3.2, 4, 3.2, 0xf2efe8, 0, 36, 0);
-    const spire = new THREE.Mesh(new THREE.ConeGeometry(1.9, 18, 4), new THREE.MeshLambertMaterial({ color: 0xf2efe8 }));
+    const spire = new THREE.Mesh(new THREE.ConeGeometry(1.9, 18, 4), new THREE.MeshStandardMaterial({ color: 0xf2efe8 }));
     spire.position.y = 49;
     spire.rotation.y = Math.PI / 4;
     spire.castShadow = true;
@@ -226,7 +226,7 @@ export function buildLandmarks(scene, world) {
     scene.add(g);
     const col = id === 'firstparish' ? 0xe9e2d0 : 0xc9c0ae;
     box(g, 5, c.h + 9, 5, col, 0, 0, 0);
-    const cap = new THREE.Mesh(new THREE.ConeGeometry(3.4, 8, 4), new THREE.MeshLambertMaterial({ color: 0x4a4f55 }));
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(3.4, 8, 4), new THREE.MeshStandardMaterial({ color: 0x4a4f55 }));
     cap.position.y = c.h + 13; cap.rotation.y = Math.PI / 4; cap.castShadow = true;
     g.add(cap);
     world.addBox(tx, tz, 5, 5, 0);
@@ -238,10 +238,10 @@ export function buildLandmarks(scene, world) {
     const g = new THREE.Group();
     g.position.set(west[0] + 3, 0, west[1]);
     scene.add(g);
-    const tower = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, l.h + 5, 8), new THREE.MeshLambertMaterial({ color: 0xc08a4f }));
+    const tower = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, l.h + 5, 8), new THREE.MeshStandardMaterial({ color: 0xc08a4f }));
     tower.position.y = (l.h + 5) / 2; tower.castShadow = true;
     g.add(tower);
-    const cap = new THREE.Mesh(new THREE.ConeGeometry(3.4, 6, 8), new THREE.MeshLambertMaterial({ color: 0x2f6b4f }));
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(3.4, 6, 8), new THREE.MeshStandardMaterial({ color: 0x2f6b4f }));
     cap.position.y = l.h + 8; cap.castShadow = true;
     g.add(cap);
   }
@@ -260,7 +260,7 @@ export function buildLandmarks(scene, world) {
       g.position.set(x + 30 + k * 5, 0, z + 35);
       scene.add(g);
       box(g, 1.2, 0.5, 1.6, 0x5a4632, 0, 0, 0);
-      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.36, 2.8, 8), new THREE.MeshLambertMaterial({ color: 0x2b2b2b }));
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.36, 2.8, 8), new THREE.MeshStandardMaterial({ color: 0x2b2b2b }));
       barrel.rotation.x = Math.PI / 2 - 0.25; barrel.position.set(0, 0.9, -0.4); barrel.castShadow = true;
       g.add(barrel);
       world.addCircle(g.position.x, g.position.z, 1, 1.3);

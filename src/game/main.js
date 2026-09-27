@@ -4,7 +4,8 @@ import { LANDMARKS, buildLandmarks, buildAreas } from './landmarks.js';
 import { Traffic, Pedestrians, Police } from './traffic.js';
 import { makeTurkey, makeCorn, makeFood, FOODS, makeRampageToken, makeCrown } from './models.js';
 import { sfx, gobble, muted, setMuted, setSiren } from './audio.js';
-import { box, clamp, angleLerp, rand, pick } from './util.js';
+import { box, clamp, angleLerp, rand, pick, setNightLights } from './util.js';
+import { createGraphics } from './graphics.js';
 
 const $ = id => document.getElementById(id);
 const store = {
@@ -28,49 +29,21 @@ const RANKS = [
 ];
 
 // ---------- renderer ----------
+// ?q=low|high or the G key picks quality; phones default to low.
+const quality = params.get('q') || store.get('tc-quality', isTouch ? 'low' : 'high');
 const canvas = $('game');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.45;
 const scene = new THREE.Scene();
-const HORIZON = new THREE.Color(0xf6d3aa), ZENITH = new THREE.Color(0x5f9fd8);
-scene.background = HORIZON.clone();
-scene.fog = new THREE.Fog(HORIZON, 200, 700);
-{
-  // golden-hour sky dome
-  const geo = new THREE.SphereGeometry(900, 24, 12);
-  const col = [];
-  const p = geo.attributes.position;
-  for (let i = 0; i < p.count; i++) {
-    const c = HORIZON.clone().lerp(ZENITH, clamp(p.getY(i) / 500, 0, 1));
-    col.push(c.r, c.g, c.b);
-  }
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  const sky = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false }));
-  sky.userData.follow = true;
-  scene.add(sky);
-  var skyDome = sky;
-}
+scene.fog = new THREE.Fog(0xc9dcef, 220, 900);
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
 camera.rotation.order = 'YXZ';
+const gfx = createGraphics(canvas, scene, camera, quality);
 function resize() {
-  renderer.setSize(innerWidth, innerHeight, false);
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
+  gfx.resize(innerWidth, innerHeight);
 }
 addEventListener('resize', resize);
 resize();
-
-scene.add(new THREE.HemisphereLight(0xe8f0ff, 0x9a8468, 1.8));
-const sun = new THREE.DirectionalLight(0xffd6a0, 2.6);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 60, bottom: -60, near: 1, far: 300 });
-sun.shadow.bias = -0.0006;
-scene.add(sun, sun.target);
 
 // ---------- load the world ----------
 await Promise.race([document.fonts.load('16px "Press Start 2P"'), new Promise(r => setTimeout(r, 2500))]).catch(() => {});
@@ -557,6 +530,8 @@ addEventListener('keydown', e => {
   keys.add(e.code);
   if (e.repeat) return;
   if (e.code === 'KeyV') toggleView();
+  if (e.code === 'KeyT') { gfx.setTime(gfx.state.tod + 3); toast(`⏩ ${gfx.clockText()}`); }
+  if (e.code === 'KeyG') { store.set('tc-quality', quality === 'high' ? 'low' : 'high'); location.reload(); }
   if (e.code === 'KeyE' || e.code === 'Enter') interact();
   if (e.code === 'Space') { jumpHeld = true; jumpPress(); }
   if (e.code === 'KeyF' || e.code === 'KeyJ') peck();
@@ -838,9 +813,6 @@ function updateCamera(dt) {
   if (P.diving) turkey.root.rotation.x = -0.9;
   marker.position.set(P.x, P.y + 4.2 + Math.sin(time * 4) * 0.25, P.z);
   marker.scale.setScalar(clamp(zoom / 35, 0.6, 2.5));
-  sun.position.set(P.x - 70, 60, P.z + 45);
-  sun.target.position.set(P.x, 0, P.z);
-  skyDome.position.set(camera.position.x, 0, camera.position.z);
 
   const sp = $('speech');
   if (speech && time - speech.at < 2 && speech.ped.group.parent) {
@@ -891,6 +863,8 @@ function drawMinimap() {
 
 // ---------- main loop ----------
 const clock = new THREE.Clock();
+const focus = new THREE.Vector3();
+let clockShown = -1;
 function frame() {
   const rawDt = Math.min(clock.getDelta(), 0.05);
   time += rawDt;
@@ -929,9 +903,13 @@ function frame() {
     if (k >= 1) { scene.remove(r.m); r.m.geometry.dispose(); r.m.material.dispose(); rings.splice(i, 1); }
   }
   updateCamera(rawDt);
+  gfx.update(dt, focus.set(P.x, P.y, P.z));
+  world.update(dt, time, gfx.state.night, P);
+  setNightLights(gfx.state.night);
   updateFloaters(rawDt);
   drawMinimap();
-  renderer.render(scene, camera);
+  if (time - clockShown > 1) { clockShown = time; $('clock').textContent = gfx.clockText(); }
+  gfx.render(rawDt);
   requestAnimationFrame(frame);
 }
 

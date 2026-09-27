@@ -1,6 +1,6 @@
 // Blocky models, all in metres. Every model faces -z ("forward") unless noted.
 import * as THREE from 'three';
-import { box, pick, sign } from './util.js';
+import { box, pick, sign, paint, glass, NIGHT_LIGHTS } from './util.js';
 
 const SKIN = [0xf0c8a0, 0xc68b59, 0x8d5524, 0xe0ac69, 0xffdbac];
 const SHIRTS = [0xa51c30, 0xa51c30, 0x1f4e8c, 0x2e7d4f, 0xf1c40f, 0x7f8c8d, 0x222222, 0xecf0f1, 0x8e44ad, 0xd35400];
@@ -81,8 +81,10 @@ export function makeVehicle(kind) {
   if (kind === 'bus' || kind === 'shuttle') {
     const mbta = kind === 'bus';
     L = 12; W = 2.6; name = mbta ? 'an MBTA BUS' : 'a HARVARD SHUTTLE';
-    box(g, W, 2.7, L, mbta ? 0xd9d9d9 : 0xa51c30, 0, 0.35, 0);
-    box(g, W + 0.04, 0.9, L - 1.2, win, 0, 1.7, 0.3);
+    box(g, W, 2.7, L, paint(mbta ? 0xd9d9d9 : 0xa51c30), 0, 0.35, 0);
+    box(g, W + 0.04, 0.9, L - 1.2, glass(), 0, 1.7, 0.3);
+    box(g, 0.5, 0.25, 0.05, NIGHT_LIGHTS.head, -0.8, 0.7, -L / 2, false);
+    box(g, 0.5, 0.25, 0.05, NIGHT_LIGHTS.head, 0.8, 0.7, -L / 2, false);
     box(g, W + 0.04, 0.25, L + 0.02, mbta ? 0xf2c500 : 0xffffff, 0, 1.2, 0);
     box(g, W - 0.2, 1.3, 0.05, win, 0, 1.4, -L / 2);
     box(g, W - 0.6, 0.3, 8, 0xaaaaaa, 0, 3.05, 0);
@@ -94,18 +96,22 @@ export function makeVehicle(kind) {
   } else if (kind === 'truck') {
     L = 7; W = 2.4; name = 'a BOX TRUCK';
     const c = pick([0x6b4226, 0x2c3e50, 0xc0392b, 0xecf0f1]);
-    box(g, W, 2.2, 2, c, 0, 0.4, -2.4);
-    box(g, W + 0.02, 0.8, 0.05, win, 0, 1.5, -3.42);
+    box(g, W, 2.2, 2, paint(c), 0, 0.4, -2.4);
+    box(g, W + 0.02, 0.8, 0.05, glass(), 0, 1.5, -3.42);
+    box(g, 0.4, 0.22, 0.05, NIGHT_LIGHTS.head, -0.8, 0.8, -3.42, false);
+    box(g, 0.4, 0.22, 0.05, NIGHT_LIGHTS.head, 0.8, 0.8, -3.42, false);
     box(g, W, 3, 4.8, 0xf2f2f2, 0, 0.4, 0.9);
     wheels(L, W);
   } else if (kind === 'police') {
     L = 4.8; W = 2; name = 'an HUPD CRUISER';
-    box(g, W, 0.8, L, 0xf2f2f2, 0, 0.35, 0);
-    box(g, W + 0.02, 0.22, L + 0.02, 0xa51c30, 0, 0.62, 0);
-    box(g, W - 0.15, 0.62, 2.5, 0xf2f2f2, 0, 1.15, 0.3);
-    box(g, W - 0.1, 0.42, 2.4, win, 0, 1.22, 0.3);
-    const red = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.22, 0.34), new THREE.MeshBasicMaterial({ color: 0xff2020 }));
-    const blue = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.22, 0.34), new THREE.MeshBasicMaterial({ color: 0x2060ff }));
+    box(g, W, 0.8, L, paint(0xf2f2f2), 0, 0.35, 0);
+    box(g, W + 0.02, 0.22, L + 0.02, paint(0xa51c30), 0, 0.62, 0);
+    box(g, W - 0.15, 0.62, 2.5, paint(0xf2f2f2), 0, 1.15, 0.3);
+    box(g, W - 0.1, 0.42, 2.4, glass(), 0, 1.22, 0.3);
+    box(g, 0.4, 0.2, 0.05, NIGHT_LIGHTS.head, -0.6, 0.8, -L / 2, false);
+    box(g, 0.4, 0.2, 0.05, NIGHT_LIGHTS.head, 0.6, 0.8, -L / 2, false);
+    const red = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.22, 0.34), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff2020).multiplyScalar(4) }));
+    const blue = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.22, 0.34), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x2060ff).multiplyScalar(4) }));
     red.position.set(-0.36, 1.88, 0.3); blue.position.set(0.36, 1.88, 0.3);
     g.add(red, blue);
     g.userData.lights = [red, blue];
@@ -114,13 +120,13 @@ export function makeVehicle(kind) {
     const taxi = kind === 'taxi';
     L = 4.5; W = 1.9; name = taxi ? 'a TAXI' : pick(['a ZIPCAR', 'a SUBARU', 'a VOLVO', 'a MINIVAN', 'a PRIUS', 'a JEEP']);
     const c = taxi ? 0xf5c518 : pick([0xe74c3c, 0x3498db, 0x2ecc71, 0xf39c12, 0x9b59b6, 0xecf0f1, 0x34495e, 0x1abc9c, 0x7f8c8d, 0x222222]);
-    box(g, W, 0.8, L, c, 0, 0.35, 0);
-    box(g, W - 0.15, 0.65, 2.4, c, 0, 1.15, 0.25);
-    box(g, W - 0.1, 0.45, 2.3, win, 0, 1.22, 0.25);
-    box(g, 0.4, 0.2, 0.05, 0xfff5b0, -0.6, 0.8, -L / 2, false);
-    box(g, 0.4, 0.2, 0.05, 0xfff5b0, 0.6, 0.8, -L / 2, false);
-    box(g, 0.4, 0.2, 0.05, 0xd62828, -0.6, 0.8, L / 2, false);
-    box(g, 0.4, 0.2, 0.05, 0xd62828, 0.6, 0.8, L / 2, false);
+    box(g, W, 0.8, L, paint(c), 0, 0.35, 0);
+    box(g, W - 0.15, 0.65, 2.4, paint(c), 0, 1.15, 0.25);
+    box(g, W - 0.1, 0.45, 2.3, glass(), 0, 1.22, 0.25);
+    box(g, 0.4, 0.2, 0.05, NIGHT_LIGHTS.head, -0.6, 0.8, -L / 2, false);
+    box(g, 0.4, 0.2, 0.05, NIGHT_LIGHTS.head, 0.6, 0.8, -L / 2, false);
+    box(g, 0.4, 0.2, 0.05, NIGHT_LIGHTS.tail, -0.6, 0.8, L / 2, false);
+    box(g, 0.4, 0.2, 0.05, NIGHT_LIGHTS.tail, 0.6, 0.8, L / 2, false);
     if (taxi) box(g, 0.9, 0.3, 0.4, 0xffffff, 0, 1.8, 0.2);
     wheels(L, W);
   }
@@ -181,7 +187,7 @@ export function makeArcade() {
   const g = new THREE.Group();
   box(g, 1.1, 1.9, 0.9, 0x1b1b1b, 0, 0, 0);
   box(g, 1.14, 0.35, 0.95, 0xa51c30, 0, 1.9, 0);
-  box(g, 0.9, 0.7, 0.05, 0x39ff88, 0, 1.1, 0.46, false);
+  box(g, 0.9, 0.7, 0.05, new THREE.MeshBasicMaterial({ color: new THREE.Color(0x39ff88).multiplyScalar(2.5) }), 0, 1.1, 0.46, false);
   box(g, 1.0, 0.1, 0.4, 0x333333, 0, 0.95, 0.55);
   const s = sign('TURKEY CROSSING', 1.1, 0.3, { bg: '#a51c30', fg: '#ffe066', border: null });
   s.position.set(0, 2.08, 0.48);
@@ -229,8 +235,8 @@ export function makeRampageToken() {
   const g = new THREE.Group();
   const inner = new THREE.Group();
   g.add(inner);
-  const glow = new THREE.MeshBasicMaterial({ color: 0xff3b30 });
-  const gold = new THREE.MeshBasicMaterial({ color: 0xffd23f });
+  const glow = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff3b30).multiplyScalar(3) });
+  const gold = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffd23f).multiplyScalar(2.5) });
   const a = new THREE.Mesh(new THREE.OctahedronGeometry(0.9), glow);
   const b = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.12, 6, 16), gold);
   a.position.y = b.position.y = 1.6;

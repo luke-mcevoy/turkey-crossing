@@ -2,7 +2,8 @@
 // spatial questions about it: collisions, water, which street/area a point is in.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { Grid, closestOnSeg, pointInPoly, polyArea, polyCentroid, pick, rand } from './util.js';
+import { Grid, closestOnSeg, pointInPoly, polyArea, polyCentroid, pick, rand, NIGHT_LIGHTS } from './util.js';
+import { FACADE, facadeTextures, paverTextures, asphaltTextures, grassTextures, concreteTextures, waterNormal, glowTexture } from './textures.js';
 
 export const BOUNDS = 680;
 // Harvard Yard, traced from its gates (Johnston, McKean, Dexter, Bradstreet...)
@@ -23,23 +24,6 @@ const NAMED_COLORS = {
   'Christ Church': 0xc9c0ae,
 };
 const FOLIAGE = [0x4f9d3a, 0x5aa845, 0xd9822b, 0xc2452d, 0xe0b23a, 0x8fb03a, 0xb8541f, 0x6aa84f];
-
-function windowTexture() {
-  const c = document.createElement('canvas');
-  c.width = c.height = 64;
-  const g = c.getContext('2d');
-  g.fillStyle = '#ffffff'; g.fillRect(0, 0, 64, 64);
-  g.fillStyle = '#e6e0d6'; g.fillRect(16, 12, 32, 36);
-  g.fillStyle = '#34465e'; g.fillRect(19, 15, 26, 30);
-  g.fillStyle = '#5b7391'; g.fillRect(19, 15, 12, 30);
-  const t = new THREE.CanvasTexture(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(1 / 3.2, 1 / 3.6);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.magFilter = THREE.NearestFilter;
-  t.anisotropy = 4;
-  return t;
-}
 
 // Flat triangle ribbons along polylines (roads, paths, lane markings), merged into one geometry.
 function ribbons(lines, y) {
@@ -67,6 +51,15 @@ function ribbons(lines, y) {
   const n = new Float32Array(pos.length);
   for (let i = 1; i < n.length; i += 3) n[i] = 1;
   g.setAttribute('normal', new THREE.BufferAttribute(n, 3));
+  return planarUV(g);
+}
+
+// World-space x/z texture coordinates (1 unit = 1 m; each material's texture.repeat sets the scale).
+function planarUV(g) {
+  const p = g.attributes.position;
+  const uv = new Float32Array(p.count * 2);
+  for (let i = 0; i < p.count; i++) { uv[i * 2] = p.getX(i); uv[i * 2 + 1] = -p.getZ(i); }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   return g;
 }
 
@@ -78,14 +71,16 @@ function flatPolys(polys, y) {
     const g = new THREE.ShapeGeometry(shape);
     g.rotateX(-Math.PI / 2);
     g.translate(0, y, 0);
-    g.deleteAttribute('uv');
-    geos.push(g);
+    geos.push(planarUV(g));
   }
   return mergeGeometries(geos);
 }
 
-function flatMesh(geo, color) {
-  const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color }));
+// Ground layers are drawn with increasing polygon offset so they never z-fight at distance.
+function flatMesh(geo, params, layer = 0) {
+  const material = new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0, ...params,
+    polygonOffset: layer > 0, polygonOffsetFactor: -layer, polygonOffsetUnits: -layer * 2 });
+  const m = new THREE.Mesh(geo, material);
   m.receiveShadow = true;
   return m;
 }
@@ -96,12 +91,15 @@ export function buildWorld(scene, data) {
   const buildings = [];
 
   // ---------- ground layers ----------
-  const groundMesh = flatMesh(new THREE.PlaneGeometry(2400, 2400).rotateX(-Math.PI / 2), 0xc9bfae);
-  scene.add(groundMesh);
-  scene.add(flatMesh(flatPolys(data.green.map(g => g.p), 0.03), 0x7fb85a));
-  scene.add(flatMesh(flatPolys(data.water.map(g => g.p), 0.05), 0x3f86c9));
-  scene.add(flatMesh(ribbons(data.paths, 0.08), 0xc0907a));
-  scene.add(flatMesh(ribbons(data.roads, 0.12), 0x4a4c52));
+  scene.add(flatMesh(planarUV(new THREE.PlaneGeometry(2400, 2400).rotateX(-Math.PI / 2)), concreteTextures()));
+  scene.add(flatMesh(flatPolys(data.green.map(g => g.p), 0.03), grassTextures(), 1));
+  const waterNrm = waterNormal();
+  const waterMesh = flatMesh(flatPolys(data.water.map(g => g.p), 0.05),
+    { color: 0x2d5f86, roughness: 0.06, metalness: 0.2, normalMap: waterNrm, normalScale: new THREE.Vector2(0.6, 0.6) }, 2);
+  waterMesh.receiveShadow = false;
+  scene.add(waterMesh);
+  scene.add(flatMesh(ribbons(data.paths, 0.08), paverTextures(), 3));
+  scene.add(flatMesh(ribbons(data.roads, 0.12), { ...asphaltTextures(), roughness: 0.95, envMapIntensity: 0.4 }, 4));
 
   const dashes = [];
   for (const r of data.roads) {
@@ -115,7 +113,7 @@ export function buildWorld(scene, data) {
       }
     }
   }
-  scene.add(flatMesh(ribbons(dashes, 0.15), 0xf2c500));
+  scene.add(flatMesh(ribbons(dashes, 0.15), { color: 0xf2c500, roughness: 0.6 }, 5));
 
   for (const r of data.roads) {
     for (let i = 0; i < r.p.length - 1; i++) {
@@ -154,7 +152,7 @@ export function buildWorld(scene, data) {
       const isCap = Math.abs(normal.getY(i)) > 0.5;
       tmp.copy(isCap ? roof : wall);
       colors[i * 3] = tmp.r; colors[i * 3 + 1] = tmp.g; colors[i * 3 + 2] = tmp.b;
-      if (isCap) uv.setXY(i, 0.1, 0.1); // plain (window-less) part of the texture
+      if (isCap) uv.setXY(i, 0.5, FACADE.bayH * FACADE.rows - 0.5); // plain top-left bay of the facade texture
     }
     g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geos.push(g);
@@ -169,8 +167,9 @@ export function buildWorld(scene, data) {
     }
     collide.add({ bld }, minX, minZ, maxX, maxZ);
   }
-  const bMesh = new THREE.Mesh(mergeGeometries(geos),
-    new THREE.MeshLambertMaterial({ vertexColors: true, map: windowTexture() }));
+  const facadeMat = new THREE.MeshStandardMaterial({ vertexColors: true, ...facadeTextures(), roughness: 1, metalness: 0,
+    emissive: 0xffffff, emissiveIntensity: 0, normalScale: new THREE.Vector2(0.8, 0.8) });
+  const bMesh = new THREE.Mesh(mergeGeometries(geos), facadeMat);
   bMesh.castShadow = bMesh.receiveShadow = true;
   scene.add(bMesh);
 
@@ -233,22 +232,104 @@ export function buildWorld(scene, data) {
     }
   }
   const N = trees.length;
-  const trunk = new THREE.InstancedMesh(new THREE.BoxGeometry(0.5, 1, 0.5), new THREE.MeshLambertMaterial({ color: 0x6e4a2b }), N);
-  const crownA = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), N);
-  const crownB = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), N);
+  const windUniform = { value: 0 };
+  const sway = mat => {
+    mat.onBeforeCompile = shader => {
+      shader.uniforms.uTime = windUniform;
+      shader.vertexShader = 'uniform float uTime;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        #ifdef USE_INSTANCING
+          vec3 ip = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+          float k = max(position.y + 0.5, 0.0);
+          transformed.x += sin(uTime * 1.6 + ip.x * 0.21 + ip.z * 0.13) * 0.09 * k;
+          transformed.z += cos(uTime * 1.3 + ip.z * 0.17) * 0.06 * k;
+        #endif`);
+    };
+    return mat;
+  };
+  // crown: a cluster of faceted blobs
+  const blobs = [[0, 0, 0, 1], [0.55, -0.15, 0.2, 0.72], [-0.5, -0.1, -0.25, 0.7], [0.1, 0.45, -0.1, 0.68], [-0.15, -0.05, 0.55, 0.62]]
+    .map(([x, y, z, s]) => new THREE.IcosahedronGeometry(s, 0).translate(x, y, z));
+  const crownGeo = mergeGeometries(blobs);
+  crownGeo.computeVertexNormals();
+  const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.24, 1, 6).translate(0, 0.5, 0),
+    new THREE.MeshStandardMaterial({ color: 0x5e4029, roughness: 0.95 }), N);
+  const crown = new THREE.InstancedMesh(crownGeo,
+    sway(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, flatShading: true })), N);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
   trees.forEach((t, i) => {
     const s = t.s;
-    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.random() * Math.PI);
-    trunk.setMatrixAt(i, m4.compose(v.set(t.x, 1.5 * s, t.z), q, sc.set(s, 3 * s, s)));
-    crownA.setMatrixAt(i, m4.compose(v.set(t.x, 4.2 * s, t.z), q, sc.set(4.2 * s, 3 * s, 4.2 * s)));
-    crownB.setMatrixAt(i, m4.compose(v.set(t.x, 6.3 * s, t.z), q, sc.set(2.8 * s, 1.8 * s, 2.8 * s)));
-    const c = new THREE.Color(pick(FOLIAGE));
-    crownA.setColorAt(i, c);
-    crownB.setColorAt(i, c.multiplyScalar(1.08));
+    q.setFromAxisAngle(up, Math.random() * Math.PI * 2);
+    trunk.setMatrixAt(i, m4.compose(v.set(t.x, 0, t.z), q, sc.set(s, 3.4 * s, s)));
+    crown.setMatrixAt(i, m4.compose(v.set(t.x, 4.6 * s, t.z), q, sc.set(2.4 * s, 2.1 * s, 2.4 * s)));
+    crown.setColorAt(i, new THREE.Color(pick(FOLIAGE)).offsetHSL(0, 0, rand(-0.05, 0.05)));
     collide.add({ circle: true, x: t.x, z: t.z, r: 0.35 * s, h: 2.5 * s }, t.x - 1, t.z - 1, t.x + 1, t.z + 1);
   });
-  for (const m of [trunk, crownA, crownB]) { m.castShadow = true; m.receiveShadow = true; scene.add(m); }
+  for (const m of [trunk, crown]) { m.castShadow = true; m.receiveShadow = true; scene.add(m); }
+
+  // ---------- streetlights (Cambridge's black acorn-style lamps) ----------
+  const lamps = [];
+  for (const r of data.roads) {
+    if (r.w < 8) continue;
+    for (let i = 0; i < r.p.length - 1; i++) {
+      const [ax, az] = r.p[i], [bx, bz] = r.p[i + 1];
+      const len = Math.hypot(bx - ax, bz - az);
+      const nx = -(bz - az) / len, nz = (bx - ax) / len;
+      for (let s = 10, side = 1; s < len; s += 26, side = -side) {
+        const x = ax + (bx - ax) * s / len + nx * (r.w / 2 + 0.9) * side, z = az + (bz - az) * s / len + nz * (r.w / 2 + 0.9) * side;
+        if (Math.abs(x) > BOUNDS || Math.abs(z) > BOUNDS || insideBuilding(x, z) || isWater(x, z)) continue;
+        if (lamps.some(l => Math.abs(l.x - x) < 8 && Math.abs(l.z - z) < 8)) continue;
+        lamps.push({ x, z });
+      }
+    }
+  }
+  const L = lamps.length;
+  const poleMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07, 0.11, 4.2, 6).translate(0, 2.1, 0),
+    new THREE.MeshStandardMaterial({ color: 0x1b1f1d, roughness: 0.5, metalness: 0.6 }), L);
+  const headMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.28, 10, 8).scale(1, 1.3, 1).translate(0, 4.45, 0), NIGHT_LIGHTS.lamp, L);
+  const poolMat = new THREE.MeshBasicMaterial({ map: glowTexture(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -16 });
+  const poolMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(16, 16).rotateX(-Math.PI / 2).translate(0, 0.2, 0), poolMat, L);
+  lamps.forEach((l, i) => {
+    m4.makeTranslation(l.x, 0, l.z);
+    poleMesh.setMatrixAt(i, m4); headMesh.setMatrixAt(i, m4); poolMesh.setMatrixAt(i, m4);
+    collide.add({ circle: true, x: l.x, z: l.z, r: 0.15, h: 4.5 }, l.x - 1, l.z - 1, l.x + 1, l.z + 1);
+  });
+  poleMesh.castShadow = true;
+  scene.add(poleMesh, headMesh, poolMesh);
+
+  // ---------- falling leaves around the camera ----------
+  const LEAVES = 260;
+  const leafMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.22, 0.16),
+    new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.8 }), LEAVES);
+  const leaves = [];
+  for (let i = 0; i < LEAVES; i++) {
+    leaves.push({ x: rand(-45, 45), y: rand(0, 18), z: rand(-45, 45), vy: rand(0.6, 1.4), ph: rand(0, 6.28), spin: rand(1, 4) });
+    leafMesh.setColorAt(i, new THREE.Color(pick([0xd9822b, 0xc2452d, 0xe0b23a, 0xb8541f, 0x8fb03a])));
+  }
+  leafMesh.frustumCulled = false;
+  scene.add(leafMesh);
+  const e = new THREE.Euler();
+
+  function update(dt, time, night, focus) {
+    windUniform.value = time;
+    waterNrm.offset.set(time * 0.012, time * 0.02);
+    facadeMat.emissiveIntensity = night * 1.8;
+    poolMat.opacity = night * 1.0;
+    for (let i = 0; i < LEAVES; i++) {
+      const l = leaves[i];
+      l.y -= l.vy * dt;
+      l.x += Math.sin(time * 1.3 + l.ph) * 0.8 * dt + 0.35 * dt;
+      l.z += Math.cos(time * 0.9 + l.ph) * 0.5 * dt;
+      if (l.y < 0.05 || Math.abs(l.x - focus.x) > 45 || Math.abs(l.z - focus.z) > 45) {
+        l.x = focus.x + rand(-45, 45); l.z = focus.z + rand(-45, 45); l.y = rand(10, 20);
+      }
+      e.set(time * l.spin + l.ph, time * l.spin * 0.7, l.ph);
+      q.setFromEuler(e);
+      leafMesh.setMatrixAt(i, m4.compose(v.set(l.x, l.y, l.z), q, sc.set(1, 1, 1)));
+    }
+    leafMesh.instanceMatrix.needsUpdate = true;
+  }
 
   // ---------- queries ----------
   function addCircle(x, z, r, h = 60) { collide.add({ circle: true, x, z, r, h }, x - r, z - r, x + r, z + r); }
@@ -292,7 +373,7 @@ export function buildWorld(scene, data) {
 
   function findBuilding(name) { return buildings.find(b => b.name === name); }
 
-  return { buildings, trees, isWater, roadAt, insideBuilding, resolve, groundAt, addCircle, addBox, findBuilding, polyCentroid };
+  return { buildings, trees, isWater, roadAt, insideBuilding, resolve, groundAt, addCircle, addBox, findBuilding, polyCentroid, update };
 }
 
 // Pre-rendered map image used by the minimap (north up, 1 px = 1/scale m).

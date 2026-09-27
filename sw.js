@@ -1,9 +1,9 @@
 // Offline support: serve cached files instantly, refresh them in the background.
 // Bump VERSION whenever you want every player to drop their old cache.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CORE = ['./', 'index.html', 'crossing.html', 'manifest.webmanifest', 'data/harvard.json',
   'src/crossing.js', 'src/game/main.js', 'src/game/world.js', 'src/game/landmarks.js', 'src/game/traffic.js',
-  'src/game/models.js', 'src/game/audio.js', 'src/game/util.js', 'icons/icon-192.png', 'icons/icon-512.png'];
+  'src/game/models.js', 'src/game/audio.js', 'src/game/util.js', 'src/game/graphics.js', 'src/game/textures.js', 'icons/icon-192.png', 'icons/icon-512.png'];
 const CDN = /^https:\/\/(cdn\.jsdelivr\.net|fonts\.googleapis\.com|fonts\.gstatic\.com)\//;
 
 self.addEventListener('install', e => {
