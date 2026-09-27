@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Turkey Crossing</title>
+  <meta name="description" content="Help a Harvard Square turkey strut across Cambridge without getting flattened.">
+  <meta property="og:title" content="Turkey Crossing">
+  <meta property="og:description" content="Dodge cars, MBTA buses and cyclists as a Harvard Square turkey.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦃</text></svg>">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#a51c30">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Turkey">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #181818;
+      --paper: #f8f8f8;
+      --crimson: #a51c30;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%; overflow: hidden;
+      background: #9ad0ec;
+      font-family: "Press Start 2P", monospace;
+      color: var(--ink);
+      touch-action: none;
+      user-select: none; -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    canvas#game { display: block; width: 100vw; height: 100vh; }
+
+    /* ---------- HUD ---------- */
+    .hud { position: fixed; top: 16px; pointer-events: none; color: #fff;
+      text-shadow: 3px 0 var(--ink), -3px 0 var(--ink), 0 3px var(--ink), 0 -3px var(--ink), 3px 3px var(--ink); }
+    #hud-left { left: 16px; }
+    #hud-right { right: 16px; text-align: right; }
+    #score { font-size: 40px; }
+    #best, #corn { font-size: 12px; margin-top: 10px; }
+    #mute { position: fixed; bottom: 16px; right: 16px; width: 44px; height: 44px; font-size: 18px;
+      background: var(--paper); border: 3px solid var(--ink); border-radius: 6px; cursor: pointer; padding: 0; }
+
+    #back { position: fixed; bottom: 16px; left: 16px; font-size: 10px; padding: 10px 12px; background: var(--paper);
+      border: 3px solid var(--ink); border-radius: 6px; color: var(--ink); text-decoration: none; }
+
+    /* ---------- Game Boy style text boxes ---------- */
+    .box {
+      background: var(--paper);
+      border: 4px solid var(--ink);
+      border-radius: 6px;
+      box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 6px #5870a8;
+      padding: 22px 22px;
+      line-height: 1.8;
+    }
+    .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      padding: 16px; }
+    .overlay.hidden { display: none; }
+    #title .box { max-width: 560px; width: 100%; text-align: center; }
+    h1 { font-size: 28px; margin: 0 0 6px; color: var(--crimson); letter-spacing: 1px; }
+    .sub { font-size: 10px; margin-bottom: 18px; }
+    .turkey-big { font-size: 56px; line-height: 1.1; margin: 8px 0 14px; }
+    .blurb { font-size: 10px; text-align: left; margin: 0 0 18px; }
+    .blink { animation: blink 1s steps(1) infinite; font-size: 12px; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .keys { font-size: 8px; margin-top: 16px; opacity: .8; }
+
+    #over { flex-direction: column; justify-content: flex-end; gap: 12px; padding-bottom: 24px; }
+    #over .stats { display: flex; gap: 28px; justify-content: center; font-size: 12px; text-align: center; }
+    #over .stats b { display: block; font-size: 26px; margin-top: 8px; }
+    #over .msg { width: 100%; max-width: 640px; font-size: 13px; min-height: 104px; position: relative; }
+    #over .msg::after { content: "▼"; position: absolute; right: 16px; bottom: 10px; font-size: 10px;
+      animation: blink 1s steps(1) infinite; }
+    .buttons { display: flex; gap: 12px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+    button.btn { font-family: inherit; font-size: 12px; padding: 12px 16px; background: var(--paper);
+      border: 3px solid var(--ink); border-radius: 6px; cursor: pointer; color: var(--ink); }
+    button.btn:hover, button.btn:focus-visible { background: #ffe9a8; outline: none; }
+    #new-best { color: var(--crimson); font-size: 10px; text-align: center; margin-top: 12px; }
+
+    @media (max-width: 520px) {
+      h1 { font-size: 20px; }
+      #score { font-size: 30px; }
+      .turkey-big { font-size: 44px; }
+      #over .msg { font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud-left" class="hud"><div id="score">0</div><div id="best">BEST 0</div></div>
+  <div id="hud-right" class="hud"><div id="corn">🌽 0</div></div>
+  <button id="mute" aria-label="Toggle sound">🔊</button>
+  <a id="back" href="index.html">◀ HARVARD SQ</a>
+
+  <div id="title" class="overlay">
+    <div class="box">
+      <h1>TURKEY CROSSING</h1>
+      <div class="sub">~ HARVARD SQUARE, CAMBRIDGE ~</div>
+      <div class="turkey-big">🦃</div>
+      <p class="blurb">A wild TURKEY appeared! Strut across Cambridge. Dodge cars, MBTA buses and cyclists, ride rowing shells over the Charles, and grab corn. Don't dawdle, or a hawk will come for you.</p>
+      <div class="blink">▶ PRESS ANY KEY OR TAP</div>
+      <div class="keys">ARROWS / WASD TO HOP · SWIPE ON PHONE · M = MUTE</div>
+    </div>
+  </div>
+
+  <div id="over" class="overlay hidden">
+    <div class="box" style="max-width:640px;width:100%">
+      <div class="stats">
+        <div>SCORE<b id="final-score">0</b></div>
+        <div>BEST<b id="final-best">0</b></div>
+        <div>CORN<b id="final-corn">0</b></div>
+      </div>
+      <div id="new-best"></div>
+      <div class="buttons">
+        <button class="btn" id="retry">▶ TRY AGAIN</button>
+        <button class="btn" id="share">SHARE</button>
+      </div>
+    </div>
+    <div class="box msg" id="death-msg"></div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
+  </script>
+  <script type="module" src="src/crossing.js"></script>
+  <script>
+    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
+  </script>
+</body>
+</html>

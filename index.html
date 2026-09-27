@@ -3,120 +3,194 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Turkey Crossing</title>
-  <meta name="description" content="Help a Harvard Square turkey strut across Cambridge without getting flattened.">
-  <meta property="og:title" content="Turkey Crossing">
-  <meta property="og:description" content="Dodge cars, MBTA buses and cyclists as a Harvard Square turkey.">
+  <title>Harvard Square Turkey</title>
+  <meta name="description" content="Roam a geographically accurate Harvard Square as one of Cambridge's wild turkeys.">
+  <meta property="og:title" content="Harvard Square Turkey">
+  <meta property="og:description" content="Roam real Harvard Square as a wild turkey. Find all 16 landmarks and dodge Boston drivers.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦃</text></svg>">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#a51c30">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Turkey">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --ink: #181818;
-      --paper: #f8f8f8;
-      --crimson: #a51c30;
-    }
+    :root { --ink: #181818; --paper: #f8f8f8; --crimson: #a51c30; --frame: #5870a8; }
     * { box-sizing: border-box; }
-    html, body {
-      margin: 0; height: 100%; overflow: hidden;
-      background: #9ad0ec;
-      font-family: "Press Start 2P", monospace;
-      color: var(--ink);
-      touch-action: none;
-      user-select: none; -webkit-user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #a9d4ee; color: var(--ink);
+      font-family: "Press Start 2P", monospace; touch-action: none; user-select: none; -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent; }
     canvas#game { display: block; width: 100vw; height: 100vh; }
+    .hidden { display: none !important; }
+    .box { background: var(--paper); border: 4px solid var(--ink); border-radius: 6px;
+      box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 6px var(--frame); padding: 18px 20px; line-height: 1.8; }
+    .outline { color: #fff; text-shadow: 2px 0 var(--ink), -2px 0 var(--ink), 0 2px var(--ink), 0 -2px var(--ink), 2px 2px var(--ink); }
 
-    /* ---------- HUD ---------- */
-    .hud { position: fixed; top: 16px; pointer-events: none; color: #fff;
-      text-shadow: 3px 0 var(--ink), -3px 0 var(--ink), 0 3px var(--ink), 0 -3px var(--ink), 3px 3px var(--ink); }
-    #hud-left { left: 16px; }
-    #hud-right { right: 16px; text-align: right; }
-    #score { font-size: 40px; }
-    #best, #corn { font-size: 12px; margin-top: 10px; }
-    #mute { position: fixed; bottom: 16px; right: 16px; width: 44px; height: 44px; font-size: 18px;
-      background: var(--paper); border: 3px solid var(--ink); border-radius: 6px; cursor: pointer; padding: 0; }
-
-    /* ---------- Game Boy style text boxes ---------- */
-    .box {
-      background: var(--paper);
-      border: 4px solid var(--ink);
-      border-radius: 6px;
-      box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 6px #5870a8;
-      padding: 22px 22px;
-      line-height: 1.8;
-    }
-    .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-      padding: 16px; }
-    .overlay.hidden { display: none; }
-    #title .box { max-width: 560px; width: 100%; text-align: center; }
-    h1 { font-size: 28px; margin: 0 0 6px; color: var(--crimson); letter-spacing: 1px; }
-    .sub { font-size: 10px; margin-bottom: 18px; }
-    .turkey-big { font-size: 56px; line-height: 1.1; margin: 8px 0 14px; }
-    .blurb { font-size: 10px; text-align: left; margin: 0 0 18px; }
-    .blink { animation: blink 1s steps(1) infinite; font-size: 12px; }
+    /* HUD */
+    #hud { position: fixed; top: 14px; left: 14px; font-size: 12px; line-height: 2; pointer-events: none; }
+    #hearts { font-size: 18px; letter-spacing: 2px; }
+    #chaos { font-size: 20px; color: #ffd23f; }
+    #rank { font-size: 9px; color: #ff8a80; }
+    #small { font-size: 9px; }
+    #energy { width: 150px; height: 10px; border: 2px solid var(--ink); background: rgba(0,0,0,.3); margin-top: 6px; }
+    #energy i { display: block; height: 100%; width: 100%; background: #6fd3ff; }
+    #gobble-state { font-size: 8px; margin-top: 4px; }
+    #stars { position: fixed; top: 192px; right: 14px; font-size: 22px; letter-spacing: 1px; color: #555; }
+    #stars b { color: #ffd23f; }
+    #stars.hot b { animation: blink .35s steps(1) infinite; }
+    #combo { position: fixed; top: 90px; left: 50%; transform: translateX(-50%); font-size: 22px; color: #ff5a3c;
+      pointer-events: none; transition: transform .1s; }
+    #rampage-hud { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--crimson);
+      padding: 10px 16px; white-space: nowrap; }
+    #announce { position: fixed; top: 30%; left: 50%; transform: translate(-50%, -50%) scale(.6); font-size: 30px;
+      text-align: center; opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; line-height: 1.6;
+      color: #ffd23f; width: 92vw; }
+    #announce small { display: block; font-size: 11px; color: #fff; margin-top: 10px; }
+    #announce.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    #floaters div { position: fixed; font-size: 13px; color: #ffd23f; pointer-events: none; white-space: nowrap;
+      transform: translate(-50%, -50%); text-shadow: 2px 0 #181818, -2px 0 #181818, 0 2px #181818, 0 -2px #181818; }
+    #minimap { position: fixed; top: 14px; right: 14px; width: 168px; height: 168px; border: 4px solid var(--ink);
+      border-radius: 8px; background: #d8d0bf; box-shadow: 0 0 0 3px var(--paper); }
+    #banner { position: fixed; top: 14px; left: 50%; transform: translate(-50%, -140%); transition: transform .35s;
+      font-size: 13px; padding: 12px 22px; white-space: nowrap; pointer-events: none; }
+    #banner.show { transform: translate(-50%, 0); }
+    #toast { position: fixed; top: 40%; left: 50%; transform: translateX(-50%); font-size: 14px; pointer-events: none;
+      transition: opacity .3s; opacity: 0; text-align: center; }
+    #toast.show { opacity: 1; }
+    #prompt { position: fixed; bottom: 150px; left: 50%; transform: translateX(-50%); font-size: 11px; padding: 10px 14px; }
+    #speech { position: fixed; font-size: 9px; padding: 8px 10px; background: #fff; border: 3px solid var(--ink);
+      border-radius: 10px; pointer-events: none; transform: translate(-50%, -100%); white-space: nowrap; }
+    #dialog { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(720px, calc(100% - 32px));
+      min-height: 110px; font-size: 13px; white-space: pre-line; }
+    #dialog::after { content: "▼"; position: absolute; right: 16px; bottom: 10px; font-size: 10px; animation: blink 1s steps(1) infinite; }
+    #dialog .who { color: var(--crimson); }
     @keyframes blink { 50% { opacity: 0; } }
-    .keys { font-size: 8px; margin-top: 16px; opacity: .8; }
+    #hint { position: fixed; bottom: 12px; left: 14px; font-size: 8px; opacity: .85; pointer-events: none; line-height: 1.8; }
+    #credit { position: fixed; bottom: 4px; right: 70px; font-family: sans-serif; font-size: 10px; color: #333; }
+    #credit a { color: #333; }
+    .btn { font-family: inherit; font-size: 11px; padding: 10px 14px; background: var(--paper); border: 3px solid var(--ink);
+      border-radius: 6px; cursor: pointer; color: var(--ink); }
+    .btn:hover, .btn:focus-visible { background: #ffe9a8; outline: none; }
+    #mute { position: fixed; bottom: 14px; right: 14px; width: 44px; height: 44px; padding: 0; font-size: 18px; }
+    #dex-btn { position: fixed; top: 232px; right: 14px; }
+    #view-btn { position: fixed; top: 276px; right: 14px; }
 
-    #over { flex-direction: column; justify-content: flex-end; gap: 12px; padding-bottom: 24px; }
-    #over .stats { display: flex; gap: 28px; justify-content: center; font-size: 12px; text-align: center; }
-    #over .stats b { display: block; font-size: 26px; margin-top: 8px; }
-    #over .msg { width: 100%; max-width: 640px; font-size: 13px; min-height: 104px; position: relative; }
-    #over .msg::after { content: "▼"; position: absolute; right: 16px; bottom: 10px; font-size: 10px;
-      animation: blink 1s steps(1) infinite; }
-    .buttons { display: flex; gap: 12px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
-    button.btn { font-family: inherit; font-size: 12px; padding: 12px 16px; background: var(--paper);
-      border: 3px solid var(--ink); border-radius: 6px; cursor: pointer; color: var(--ink); }
-    button.btn:hover, button.btn:focus-visible { background: #ffe9a8; outline: none; }
-    #new-best { color: var(--crimson); font-size: 10px; text-align: center; margin-top: 12px; }
+    /* Title + Landmarkdex overlays */
+    .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px;
+      background: rgba(20, 30, 50, .35); }
+    #title .box { max-width: 600px; width: 100%; text-align: center; }
+    h1 { font-size: 24px; margin: 0 0 8px; color: var(--crimson); }
+    .sub { font-size: 10px; margin-bottom: 14px; }
+    .big { font-size: 52px; margin: 6px 0 12px; }
+    .blurb { font-size: 10px; text-align: left; }
+    .keys { font-size: 8px; text-align: left; margin: 14px 0; line-height: 2.2; }
+    .blinky { animation: blink 1s steps(1) infinite; font-size: 12px; }
+    #dex .box { max-width: 760px; width: 100%; max-height: 86vh; overflow: auto; }
+    #dex h2 { font-size: 16px; margin: 0 0 14px; color: var(--crimson); }
+    #dex-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+    .entry { border: 3px solid var(--ink); border-radius: 6px; padding: 10px; font-size: 8px; line-height: 1.8; }
+    .entry b { display: block; font-size: 9px; margin-bottom: 6px; }
+    .entry.unknown { opacity: .5; }
 
-    @media (max-width: 520px) {
-      h1 { font-size: 20px; }
-      #score { font-size: 30px; }
-      .turkey-big { font-size: 44px; }
-      #over .msg { font-size: 11px; }
+    /* Touch controls */
+    #touch { display: none; }
+    body.touch #touch { display: block; }
+    body.touch #hint { display: none; }
+    #stick { position: fixed; width: 120px; height: 120px; border-radius: 50%; border: 3px solid rgba(24,24,24,.6);
+      background: rgba(255,255,255,.25); pointer-events: none; transform: translate(-50%, -50%); display: none; }
+    #stick i { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px; border-radius: 50%;
+      background: rgba(24,24,24,.55); }
+    .tbtn { position: fixed; width: 64px; height: 64px; border-radius: 50%; font-size: 10px; padding: 0; }
+    #t-peck { right: 20px; bottom: 30px; width: 84px; height: 84px; font-size: 12px; background: #ffd9d0; }
+    #t-jump { right: 116px; bottom: 26px; }
+    #t-gobble { right: 36px; bottom: 128px; }
+    #t-act { right: 116px; bottom: 104px; width: 48px; height: 48px; }
+    body.touch #mute { bottom: auto; top: 320px; }
+    @media (max-width: 600px) {
+      #minimap { width: 120px; height: 120px; }
+      #stars { top: 144px; font-size: 16px; }
+      #dex-btn { top: 176px; } #view-btn { top: 218px; }
+      body.touch #mute { top: 262px; }
+      #chaos { font-size: 14px; }
+      #announce { font-size: 20px; }
+      #dialog { font-size: 10px; }
+      h1 { font-size: 18px; }
     }
   </style>
 </head>
 <body>
   <canvas id="game"></canvas>
 
-  <div id="hud-left" class="hud"><div id="score">0</div><div id="best">BEST 0</div></div>
-  <div id="hud-right" class="hud"><div id="corn">🌽 0</div></div>
-  <button id="mute" aria-label="Toggle sound">🔊</button>
+  <div id="hud" class="outline">
+    <div id="hearts">❤❤❤</div>
+    <div id="chaos">CHAOS 0</div>
+    <div id="rank">HARMLESS POULT</div>
+    <div id="small"><span id="corn">🌽 0</span> · <span id="dexcount">DEX 0/16</span></div>
+    <div id="energy"><i></i></div>
+    <div id="gobble-state"></div>
+  </div>
+  <canvas id="minimap" width="168" height="168"></canvas>
+  <div id="stars" class="outline"></div>
+  <div id="combo" class="outline"></div>
+  <div id="rampage-hud" class="box hidden"></div>
+  <div id="announce" class="outline"></div>
+  <div id="floaters"></div>
+  <button class="btn" id="dex-btn">DEX</button>
+  <button class="btn" id="view-btn">VIEW</button>
+  <div id="banner" class="box"></div>
+  <div id="toast" class="outline"></div>
+  <div id="prompt" class="box hidden"></div>
+  <div id="speech" class="hidden"></div>
+  <div id="dialog" class="box hidden"></div>
+  <div id="hint" class="outline">WASD MOVE · SHIFT SPRINT · SPACE JUMP/FLY · F/CLICK BITE · Q MEGA GOBBLE · V VIEW · E ACT · TAB DEX · M MUTE</div>
+  <div id="credit">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
+  <button class="btn" id="mute" aria-label="Toggle sound">🔊</button>
+
+  <div id="touch">
+    <div id="stick"><i></i></div>
+    <button class="btn tbtn" id="t-peck">BITE</button>
+    <button class="btn tbtn" id="t-jump">FLAP</button>
+    <button class="btn tbtn" id="t-gobble">GOBBLE</button>
+    <button class="btn tbtn" id="t-act">E</button>
+  </div>
 
   <div id="title" class="overlay">
     <div class="box">
-      <h1>TURKEY CROSSING</h1>
-      <div class="sub">~ HARVARD SQUARE, CAMBRIDGE ~</div>
-      <div class="turkey-big">🦃</div>
-      <p class="blurb">A wild TURKEY appeared! Strut across Cambridge. Dodge cars, MBTA buses and cyclists, ride rowing shells over the Charles, and grab corn. Don't dawdle, or a hawk will come for you.</p>
-      <div class="blink">▶ PRESS ANY KEY OR TAP</div>
-      <div class="keys">ARROWS / WASD TO HOP · SWIPE ON PHONE · M = MUTE</div>
+      <h1>HARVARD SQUARE TURKEY</h1>
+      <div class="sub">~ CAMBRIDGE, MASSACHUSETTS ~</div>
+      <div class="big">🦃</div>
+      <p class="blurb">The turkeys of Harvard Square have had enough. The streets, buildings and landmarks are the real ones, from OpenStreetMap. Bite people, steal their lunch, fly over the rooftops and cause CHAOS. Raise your WANTED level, dodge Animal Control and the HUPD, and rise to TURKEY KING OF HARVARD SQ.</p>
+      <div class="keys">
+        MOVE: WASD / ARROWS · SPRINT: SHIFT<br>
+        JUMP / FLY: SPACE (TAP IN THE AIR TO FLAP) · DIVE BOMB: BITE IN MID-AIR<br>
+        BITE: F OR CLICK · MEGA GOBBLE: Q (UNLOCKS AT NUISANCE)<br>
+        VIEW: V · TALK / PLAY: E · LANDMARKDEX: TAB · ZOOM: WHEEL
+      </div>
+      <div id="start-msg" class="blinky">LOADING HARVARD SQUARE...</div>
     </div>
   </div>
 
-  <div id="over" class="overlay hidden">
-    <div class="box" style="max-width:640px;width:100%">
-      <div class="stats">
-        <div>SCORE<b id="final-score">0</b></div>
-        <div>BEST<b id="final-best">0</b></div>
-        <div>CORN<b id="final-corn">0</b></div>
-      </div>
-      <div id="new-best"></div>
-      <div class="buttons">
-        <button class="btn" id="retry">▶ TRY AGAIN</button>
-        <button class="btn" id="share">SHARE</button>
-      </div>
+  <div id="dex" class="overlay hidden">
+    <div class="box">
+      <h2>LANDMARKDEX</h2>
+      <div id="dex-list"></div>
+      <p style="font-size:9px;margin-top:14px">TAB / TAP TO CLOSE</p>
     </div>
-    <div class="box msg" id="death-msg"></div>
   </div>
 
   <script type="importmap">
-    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    } }
   </script>
-  <script type="module" src="src/main.js"></script>
+  <script type="module" src="src/game/main.js"></script>
+  <script>
+    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
+  </script>
 </body>
 </html>
