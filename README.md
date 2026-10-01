@@ -10,6 +10,10 @@ to **Turkey King of Harvard Square** while Animal Control and the HUPD try to st
 **On your phone:** open the link, then *Share → Add to Home Screen* (iPhone) or *Install app*
 (Android). It runs full screen and works offline.
 
+![Biting a crowd in Harvard Square](docs/screenshots/03-chaos-combo.jpg)
+
+📖 **[How to play: full guide with examples and screenshots →](docs/HOW_TO_PLAY.md)**
+
 ## Controls
 
 | Action | Keyboard / mouse | Phone |
@@ -21,6 +25,25 @@ to **Turkey King of Harvard Square** while Animal Control and the HUPD try to st
 | Talk / play arcade | E | E |
 | Top-down ↔ turkey-eye view | V (+ mouse to look) | VIEW (+ drag the right side) |
 | Landmarkdex / mute / zoom | Tab / M / mouse wheel | DEX / 🔊 |
+| Time of day / graphics quality | T / G | |
+
+## Quick examples
+
+- **Start a combo:** run into a crowd on Mass Ave and press **F** again and again. Every bite within
+  about 3 seconds raises your multiplier (up to x10). Grab the food people drop to heal.
+- **Escape the cops:** at ★★★ HUPD cruisers join Animal Control. Press **Space**, then tap it again
+  in the air to flap up onto a rooftop where they can't reach you.
+- **Dive bomb:** fly up, steer over a crowd, and press **F** in mid-air to slam down with a shockwave.
+- **Rampage:** touch a spinning red token and bite 10 people in 45 seconds for +2,500 chaos.
+- **Sightseeing:** walk to the John Harvard statue, Widener, Mem Church and the rest to fill your
+  16-entry Landmarkdex (**Tab**).
+- **Jump to a spot:** [Old Yard](https://luke-mcevoy.github.io/turkey-crossing/?at=118,-100) ·
+  [The Pit](https://luke-mcevoy.github.io/turkey-crossing/?at=-14,-11) ·
+  [Mass Ave traffic](https://luke-mcevoy.github.io/turkey-crossing/?at=54,13) ·
+  [Lampoon Castle](https://luke-mcevoy.github.io/turkey-crossing/?at=125,203) ·
+  [The Charles](https://luke-mcevoy.github.io/turkey-crossing/?at=-262,420)
+
+See [docs/HOW_TO_PLAY.md](docs/HOW_TO_PLAY.md) for step-by-step walkthroughs of every system.
 
 ## What's in it
 
@@ -46,6 +69,8 @@ python3 -m http.server 8000     # then open http://localhost:8000
 - `src/game/world.js` builds the city from `data/harvard.json`; `landmarks.js` has the hand-built
   landmarks and the Landmarkdex; `traffic.js` has cars, pedestrians and police; `main.js` has the
   player, chaos systems, HUD and camera.
+- `src/game/graphics.js` is the rendering pipeline (physical sky, image-based lighting, N8AO ambient
+  occlusion, bloom, colour grading, SMAA); `textures.js` draws every texture procedurally.
 - To refresh the map: see `tools/build_map.py` (fetches from the Overpass API, writes `data/harvard.json`).
 - `sw.js` caches the game for offline play. Bump `VERSION` in it when shipping big changes.
 
