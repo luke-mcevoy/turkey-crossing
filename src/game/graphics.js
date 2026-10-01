@@ -122,10 +122,8 @@ export function createGraphics(canvas, scene, camera, quality = 'high') {
   return {
     renderer, state, quality,
     setTime,
-    // Day lasts ~9 minutes, night ~3.
+    // Time of day stays put (always daytime); the T key picks a preset.
     update(dt, focus) {
-      const rate = state.night > 0.5 ? 1 / 15 : 1 / 28; // game hours per real second
-      setTime(state.tod + dt * rate);
       sun.position.copy(focus).addScaledVector(state.sunDir, 160);
       sun.target.position.copy(focus);
       sky.position.copy(camera.position);

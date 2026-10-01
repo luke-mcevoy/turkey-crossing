@@ -530,7 +530,13 @@ addEventListener('keydown', e => {
   keys.add(e.code);
   if (e.repeat) return;
   if (e.code === 'KeyV') toggleView();
-  if (e.code === 'KeyT') { gfx.setTime(gfx.state.tod + 3); toast(`⏩ ${gfx.clockText()}`); }
+  if (e.code === 'KeyT') {
+    // daytime only: morning, midday, afternoon, golden hour
+    const presets = [8.5, 12, 15, 17.2];
+    const next = presets.find(h => h > gfx.state.tod + 0.01) ?? presets[0];
+    gfx.setTime(next);
+    toast(`☀ ${gfx.clockText()}`);
+  }
   if (e.code === 'KeyG') { store.set('tc-quality', quality === 'high' ? 'low' : 'high'); location.reload(); }
   if (e.code === 'KeyE' || e.code === 'Enter') interact();
   if (e.code === 'Space') { jumpHeld = true; jumpPress(); }
